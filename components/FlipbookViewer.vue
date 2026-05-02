@@ -12,14 +12,12 @@
         <!-- Front Cover Outer -->
         <div class="page" data-density="hard">
           <div class="page-content">
-            <NuxtImg 
+            <img 
               v-if="bookData.covers.frontOuter"
               :src="bookData.covers.frontOuter" 
-              format="webp"
               alt="Front Cover Outer"
               class="page-image"
               loading="lazy"
-              sizes="xs:100vw sm:100vw md:50vw lg:1122px"
               @load="(e) => e.target.classList.add('loaded')"
             />
             <span v-else>Front Cover</span>
@@ -29,14 +27,12 @@
         <!-- Front Cover Inner -->
         <div class="page" data-density="hard">
           <div class="page-content">
-            <NuxtImg 
+            <img 
               v-if="bookData.covers.frontInner"
               :src="bookData.covers.frontInner" 
-              format="webp"
               alt="Front Cover Inner"
               class="page-image"
               loading="lazy"
-              sizes="xs:100vw sm:100vw md:50vw lg:1122px"
               @load="(e) => e.target.classList.add('loaded')"
             />
             <span v-else>Inside Front</span>
@@ -46,13 +42,11 @@
         <!-- Inner Pages (Dynamic) -->
         <div class="page" data-density="hard" v-for="(pageUrl, idx) in bookData.pages" :key="pageUrl">
           <div class="page-content">
-            <NuxtImg 
+            <img 
               :src="pageUrl" 
-              format="webp"
               :alt="`Page ${idx + 1}`"
               class="page-image"
               loading="lazy"
-              sizes="xs:100vw sm:100vw md:50vw lg:1122px"
               @load="(e) => e.target.classList.add('loaded')"
             />
           </div>
@@ -61,14 +55,12 @@
         <!-- Back Cover Inner -->
         <div class="page" data-density="hard">
           <div class="page-content">
-            <NuxtImg 
+            <img 
               v-if="bookData.covers.backInner"
               :src="bookData.covers.backInner" 
-              format="webp"
               alt="Back Cover Inner"
               class="page-image"
               loading="lazy"
-              sizes="xs:100vw sm:100vw md:50vw lg:1122px"
               @load="(e) => e.target.classList.add('loaded')"
             />
             <span v-else>Inside Back</span>
@@ -78,14 +70,12 @@
         <!-- Back Cover Outer -->
         <div class="page" data-density="hard">
           <div class="page-content">
-            <NuxtImg 
+            <img 
               v-if="bookData.covers.backOuter"
               :src="bookData.covers.backOuter" 
-              format="webp"
               alt="Back Cover Outer"
               class="page-image"
               loading="lazy"
-              sizes="xs:100vw sm:100vw md:50vw lg:1122px"
               @load="(e) => e.target.classList.add('loaded')"
             />
             <span v-else>Back Cover</span>
@@ -167,60 +157,36 @@ const bookData = ref({
   }
 })
 
-const checkFileExists = async (url) => {
-  try {
-    const res = await fetch(url, { method: 'HEAD' })
-    if (!res.ok) return false
-    
-    // Check if Nuxt is returning an HTML fallback instead of a 404
-    const contentType = res.headers.get('content-type')
-    if (contentType && contentType.includes('text/html')) {
-      return false
-    }
-    return true
-  } catch {
-    return false
-  }
-}
-
-const extensions = ['.jpg', '.jpeg', '.png', '.webp']
-
-const findCover = async (prefix) => {
-  for (const ext of extensions) {
-    const url = `${base}cover/${prefix}${ext}`
-    if (await checkFileExists(url)) return url
-  }
-  return null
-}
-
 const fetchBookData = async () => {
-  // Find Covers
-  bookData.value.covers.frontOuter = await findCover('front-cover-1')
-  bookData.value.covers.frontInner = await findCover('front-cover-2')
-  bookData.value.covers.backInner = await findCover('back-cover-1')
-  bookData.value.covers.backOuter = await findCover('back-cover-2')
+  try {
+    // Fetch pre-generated data from the server API route
+    // Nuxt prerenders this route on build and maps it to a JSON payload
+    const serverData = await $fetch(`${base}api/book-data.json`)
+    
+    if (serverData) {
+      const { pages: serverPages, covers: serverCovers } = serverData
+      
+      // Sort pages correctly by number
+      const sortedPages = serverPages.sort((a, b) => {
+        const numA = parseInt(a.split('.')[0]) || 0
+        const numB = parseInt(b.split('.')[0]) || 0
+        return numA - numB
+      }).map(f => `${base}pages/${f}`)
 
-  // Find Pages up to 200, allowing for some missing numbers (gaps)
-  let consecutiveMisses = 0
-  for (let i = 1; i <= 200; i++) {
-    let found = null
-    for (const ext of extensions) {
-      const url = `${base}pages/${i}${ext}`
-      if (await checkFileExists(url)) {
-        found = url
-        break
+      bookData.value.pages = sortedPages
+
+      const getCover = (prefix) => {
+        const coverFile = serverCovers.find(f => f.startsWith(prefix))
+        return coverFile ? `${base}cover/${coverFile}` : null
       }
+
+      bookData.value.covers.frontOuter = getCover('front-cover-1')
+      bookData.value.covers.frontInner = getCover('front-cover-2')
+      bookData.value.covers.backInner = getCover('back-cover-1')
+      bookData.value.covers.backOuter = getCover('back-cover-2')
     }
-    if (found) {
-      bookData.value.pages.push(found)
-      consecutiveMisses = 0 // reset misses when a page is found
-    } else {
-      consecutiveMisses++
-      // If we can't find 10 pages in a row, assume we've reached the end
-      if (consecutiveMisses >= 10) {
-        break
-      }
-    }
+  } catch (error) {
+    console.error('Failed to load book data:', error)
   }
 
   isLoading.value = false

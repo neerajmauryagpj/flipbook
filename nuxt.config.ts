@@ -23,5 +23,10 @@ export default defineNuxtConfig({
         { hid: 'description', name: 'description', content: 'Neeraj & Anamika Wedding Photo Album' }
       ]
     }
+  },
+  nitro: {
+    prerender: {
+      routes: ['/api/book-data.json']
+    }
   }
 })
