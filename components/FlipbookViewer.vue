@@ -1,7 +1,7 @@
 <template>
   <div class="flipbook-wrapper" :class="{ maximized: isMaximized }" ref="wrapperRef">
     <!-- Background Music -->
-    <audio ref="audioRef" src="/wedding-music.mp3" loop preload="auto"></audio>
+    <audio ref="audioRef" :src="`${base}wedding-music.mp3`" loop preload="auto"></audio>
 
     <div v-if="isLoading" class="loading-state">
       Loading your flipbook...
@@ -153,6 +153,8 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const config = useRuntimeConfig()
+const base = config.app.baseURL || '/'
 
 const isLoading = ref(true)
 const bookData = ref({
@@ -185,7 +187,7 @@ const extensions = ['.jpg', '.jpeg', '.png', '.webp']
 
 const findCover = async (prefix) => {
   for (const ext of extensions) {
-    const url = `/cover/${prefix}${ext}`
+    const url = `${base}cover/${prefix}${ext}`
     if (await checkFileExists(url)) return url
   }
   return null
@@ -203,7 +205,7 @@ const fetchBookData = async () => {
   for (let i = 1; i <= 200; i++) {
     let found = null
     for (const ext of extensions) {
-      const url = `/pages/${i}${ext}`
+      const url = `${base}pages/${i}${ext}`
       if (await checkFileExists(url)) {
         found = url
         break
